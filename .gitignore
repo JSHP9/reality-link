@@ -1,0 +1,24 @@
+# Maven / Eclipse
+target/
+bin/
+.project
+.classpath
+.settings/
+.metadata/
+*.launch
+
+# Model / diagnostic output
+*.[oO][nN][nN][xX]
+diagnostics/
+logs/
+*.log
+
+# Media and distributable archives
+*.[pP][nN][gG]
+*.[jJ][pP][gG]
+*.[jJ][pP][eE][gG]
+*.[wW][aA][vV]
+*.[mM][pP]3
+*.[oO][gG][gG]
+*.[mM][pP]4
+*.[zZ][iI][pP]
