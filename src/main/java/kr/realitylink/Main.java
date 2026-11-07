@@ -4,6 +4,7 @@ import kr.realitylink.ai.Classifier;
 import kr.realitylink.diagnostics.PrototypeWindow;
 import kr.realitylink.mirror.MirrorDialog;
 import kr.realitylink.mirror.MirrorScanner;
+import kr.realitylink.ui.MainFrame;
 
 import java.nio.file.Path;
 import javax.imageio.ImageIO;
@@ -66,8 +67,10 @@ public final class Main {
                     if (mode.equals("image")) System.out.print(classifier.classify(ImageIO.read(image.toFile())).format());
                 }
             } else {
-                Path selectedModel = model;
-                SwingUtilities.invokeLater(() -> openMirrorTest(selectedModel));
+                SwingUtilities.invokeLater(() -> {
+                    MainFrame frame = new MainFrame();
+                    frame.setVisible(true);
+                });
             }
         } catch (Exception | LinkageError e) {
             System.err.println("실행 실패: " + e.getMessage());
