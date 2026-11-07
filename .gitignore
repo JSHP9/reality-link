@@ -9,7 +9,7 @@ bin/
 
 # Model / diagnostic output
 *.[oO][nN][nN][xX]
-diagnostics/
+/diagnostics/
 logs/
 *.log
 
