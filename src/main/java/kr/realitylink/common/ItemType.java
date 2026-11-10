@@ -2,7 +2,8 @@ package kr.realitylink.common;
 
 public enum ItemType {
     PEN("펜", "pen.png"),
-    CUP("컵", "cup.png");
+    CUP("컵", "cup.png"),
+    BOOK("책", "book.png");
 
     private final String displayName;
     private final String imageFile;

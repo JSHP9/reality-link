@@ -1,43 +1,37 @@
+
 package kr.realitylink.mirror;
 
-import kr.realitylink.ai.VerificationSession;
 import kr.realitylink.common.ItemType;
 import kr.realitylink.common.ItemAcquiredListener;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
-/** A dialog-local verification session. Access from the EDT. */
+// 인식된 아이템을 임시 저장하고, 가져오기 버튼을 누르면 게임에 전달하는 클래스
 final class MirrorAcquisition {
-    private VerificationSession session;
-    private List<ItemType> pending = List.of();
-    private int progress;
 
-    VerificationSession.Decision accept(MirrorScanner.Scan scan) {
-        if (progress == VerificationSession.SHOTS) throw new IllegalStateException("새 촬영 세션을 시작하세요.");
-        if (session == null) session = new VerificationSession(scan.policy(), scan.policy().minimumScore());
-        VerificationSession.Decision decision = session.accept(scan.result());
-        progress = decision.shot();
-        if (decision.complete()) {
-            pending = Arrays.stream(ItemType.values())
-                    .filter(item -> decision.approved().contains(item.name()))
-                    .toList();
-        }
-        return decision;
+    // 아직 인벤토리로 가져오지 않은 아이템 목록
+    private List<ItemType> pending = new ArrayList<>();
+
+    // 현재 대기 중인 아이템 목록 반환
+    List<ItemType> pending() {
+        return new ArrayList<>(pending); // 리스트의 복사본을 반환하므로 내부 pending 안바뀜.
     }
 
-    int progress() { return progress; }
-    List<ItemType> pending() { return pending; }
-
-    void retry() {
-        session = null;
-        progress = 0;
-        pending = List.of();
+    // YOLO가 인식한 아이템을 대기 목록에 저장
+    void setDetectedItems(Set<ItemType> items) {
+        pending = new ArrayList<>(items);
     }
 
+    // 가져오기 버튼을 누르면 아이템을 게임으로 전달
     void claim(ItemAcquiredListener listener) {
-        List<ItemType> items = pending;
-        pending = List.of();
-        items.forEach(listener::onItemAcquired);
+
+        for (ItemType item : pending) {
+            listener.onItemAcquired(item);
+        }
+
+        // 전달이 끝나면 대기 목록 비우기
+        pending.clear();
     }
 }

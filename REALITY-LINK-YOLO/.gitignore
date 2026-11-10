@@ -1,0 +1,5 @@
+/.venv/
+/.runtime/
+/local.properties
+*.pt
+__pycache__/

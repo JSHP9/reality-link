@@ -1,9 +1,0 @@
-actual	condition	expected_final	planned_sessions	status	completed_sessions	false_positive_sessions	miss_sessions	notes
-PEN	HANDHELD	PEN	3	USER_REPORTED_CANDIDATES_RETEST_PENDING				사용자 보고 FULL 후보0/3 ROI후보3/3; 새 빌드 실물 재검증 필요
-PEN	ON_DESK	PEN	3	PENDING_USER_TEST				책상 위 동일 펜 FULL/ROI 비교
-CUP	HANDHELD	CUP	3	PENDING_USER_TEST				손에 든 컵 FULL/ROI 비교
-CUP	ON_DESK	CUP	3	PENDING_USER_TEST				책상 위 컵 FULL/ROI 비교
-NONE:DRIVER	UNSPECIFIED	[]	3	PENDING_USER_TEST				PEN/CUP 오승인 여부 확인
-NONE:SPEAKER	UNSPECIFIED	[]	3	PENDING_USER_TEST				PEN/CUP 오승인 여부 확인
-NONE:EMPTY	EMPTY_BACKGROUND	[]	3	PENDING_USER_TEST				빈 배경의 PEN/CUP 오승인 확인
-NONE:HAND	HAND_ONLY	[]	3	PENDING_USER_TEST				손만 촬영한 음성 대조군
