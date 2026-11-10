@@ -20,15 +20,14 @@ public class MainFrame extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
         setLocationRelativeTo(null);
-
-        // 거울 클릭 이벤트 연결
-        WallPanel wallPanel = new WallPanel(this::openMirror);
-        add(wallPanel, BorderLayout.CENTER);
-
+        
         // 인벤토리
         InventoryPanel inventoryPanel = new InventoryPanel();
         add(inventoryPanel, BorderLayout.EAST);
 
+        // 거울 클릭 이벤트 연결
+        WallPanel wallPanel = new WallPanel(this::openMirror, inventoryPanel);
+        add(wallPanel, BorderLayout.CENTER);
         // 게임 종료 시 AI 자원 해제
         addWindowListener(new WindowAdapter() {
             @Override
