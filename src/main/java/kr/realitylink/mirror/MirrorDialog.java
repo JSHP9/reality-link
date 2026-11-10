@@ -132,7 +132,7 @@ public final class MirrorDialog extends JDialog {
         }
         
         if (frame != null && status.getText().equals("카메라를 연결하는 중입니다.")) {
-            status.setText("물체가 화면에 보이면 스캔하기를 누르세요.");
+            status.setText("물체가 화면에 올리고 스캔하기를 누르세요.");
         }
         // 추론 중이거나 가져올 아이템이 있으면 촬영과 재연결을 막는다.
         captureButton.setEnabled(!busy && acquisition.pending().isEmpty()
