@@ -8,7 +8,6 @@ import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.Set;
 import java.util.function.BiConsumer;
 
 /* 추론은 MirrorScanner에 요청함 */
@@ -37,15 +36,15 @@ public final class MirrorScanner implements AutoCloseable {
     CameraService camera() { return camera; }
 
     // 기존 추론 작업 스레드에서 Python 실행과 응답 대기를 처리한다.
-    void scanYolo(BufferedImage frame, BiConsumer<Set<ItemType>, Exception> completed) {
+    void scanYolo(BufferedImage frame, BiConsumer<ItemType, Exception> completed) {
         if (closed) {
             completed.accept(null, new IllegalStateException("거울 스캐너가 종료되었습니다."));
             return;
         }
         yoloTask = worker.submit(() -> {
-            Set<ItemType> items;
+            ItemType item;
             try {
-                items = yolo.detect(frame);
+                item = yolo.detect(frame);
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
                 return;
@@ -53,7 +52,7 @@ public final class MirrorScanner implements AutoCloseable {
                 completed.accept(null, failure);
                 return;
             }
-            completed.accept(items, null);
+            completed.accept(item, null);
         });
     }
 

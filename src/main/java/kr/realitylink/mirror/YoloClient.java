@@ -10,11 +10,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -31,7 +29,8 @@ final class YoloClient {
     }
 
     // 사진을 Python에 보냄.
-    Set<ItemType> detect(BufferedImage frame) throws IOException, InterruptedException {
+    ItemType detect(BufferedImage frame)
+            throws IOException, InterruptedException {
         // PC마다 Python 위치가 다를 수 있어서 local.properties에서 읽는다.
         Properties config = new Properties();
         Path localConfig = folder.resolve("local.properties");
@@ -88,7 +87,7 @@ final class YoloClient {
                     throw new IOException("YOLO 실행 오류 (" + process.exitValue() + "). 콘솔을 확인해 주세요.");
                 }
                 
-                return parseItems(Files.readString(output));
+                return parseItem(Files.readString(output));
             } finally {
                 stop(process);
                 
@@ -104,32 +103,41 @@ final class YoloClient {
         }
     }
 
-    // Python이 반환한 json 문자열을 게임 아이템의 집합(Set<ItemType>)으로 변환.
-    static Set<ItemType> parseItems(String json) throws IOException {
-        Object result; // json 값 
-        
+    // JSON 탐지 결과를 게임 아이템 하나로 변환
+    static ItemType parseItem(String json) throws IOException {
+
+        Object result;
+
         try {
-            result = Jsoner.deserialize(json); // json값을 java객체로 변환.
-        } catch (JsonException invalid) {
-            throw new IOException("YOLO의 JSON 응답을 읽을 수 없습니다.", invalid);
+            result = Jsoner.deserialize(json);
+        } catch (JsonException e) {
+            throw new IOException("JSON 읽기 실패", e);
         }
-        // Python이 보낸 json에서 detections 목록을 꺼냄. ?는 와일드 카드.
-        if (!(result instanceof Map<?, ?> root) || !(root.get("detections") instanceof List<?> detections)) {
-            throw new IOException("YOLO 응답에 detections 배열이 없습니다.");
+
+        // detections 목록 가져오기
+        if (!(result instanceof Map<?, ?> root)
+                || !(root.get("detections") instanceof List<?> detections)) {
+            throw new IOException("YOLO 결과 형식 오류");
         }
-        // 같은 클래스의 박스가 여러 개 있어도 게임 아이템은 한 번만 담는다.
-        Set<ItemType> items = EnumSet.noneOf(ItemType.class); // noneOf는 빈 EnumSet만드는 메서드.
-        for (Object entry : detections) {
-            if (!(entry instanceof Map<?, ?> detection)
-                    || !(detection.get("classId") instanceof Number id)
-                    || !(detection.get("name") instanceof String name)) {
-                throw new IOException("YOLO 탐지 항목의 형식이 올바르지 않습니다.");
-            }
-            // 아이템 목록
-            if (id.doubleValue() == 41 && name.equals("cup")) items.add(ItemType.CUP);
-            if (id.doubleValue() == 73 && name.equals("book")) items.add(ItemType.BOOK);
+
+        // 탐지된 물체가 없음
+        if (detections.isEmpty())
+            return null;
+
+        // 첫 번째 물체의 클래스 번호 가져오기
+        if (!(detections.get(0) instanceof Map<?, ?> detection)
+                || !(detection.get("classId") instanceof Number id)) {
+            throw new IOException("탐지 결과 형식 오류");
         }
-        return items;
+
+        int classId = id.intValue();
+
+        if (classId == 41) return ItemType.CUP;
+        if (classId == 67) return ItemType.PHONE;
+        if (classId == 73) return ItemType.BOOK;
+        if (classId == 76) return ItemType.SCISSORS;
+
+        return null;
     }
 
     private static void stop(Process process) {
