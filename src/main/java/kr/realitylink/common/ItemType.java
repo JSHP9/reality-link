@@ -3,15 +3,15 @@ package kr.realitylink.common;
 import javax.swing.ImageIcon;
 
 public enum ItemType {
-    BOOK("책", "/assets/items/book.png", true),
-    LADDER("사다리", "/assets/items/ladder.png", false),
-    SCISSORS("가위", "/assets/items/scizzors.png", false),
-    PHONE("휴대전화", "/assets/items/phone.png", false),
+	BOOK("책", "/assets/items/book.png", true),
+	LADDER("사다리", "/assets/items/ladder.png", false),
+	SCISSORS("가위", "/assets/items/scissors.png", false),
+	PHONE("휴대전화", "/assets/items/phone.png", false),
     CUP("컵", "/assets/items/cup.png", false),
     WATER_CUP("물이 담긴 컵", "/assets/items/water_cup.png", false),
     PLANT("식물", "/assets/items/plant.png", false),
     SWITCH_HANDLE("스위치 손잡이","/assets/items/switch_handle.png", false),
-    KEY("열쇠", "/assets/items/key.png", true);
+	KEY("열쇠", "/assets/items/key.png", true);
 
     private final String displayName;
     private final String imageFile;
