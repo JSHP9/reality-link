@@ -170,7 +170,8 @@ public final class MirrorDialog extends JDialog {
 		status.setText("카메라를 연결하는 중입니다.");
 		captureButton.setText("스캔하기");
 		// num, 실행방식, 상태메시지, 종료시 실행함수
-		scanner.camera().start(0, Videoio.CAP_ANY,
+		// DirectShow가 CAP_ANY 방식 보다 카메라를 빠르게 열음.
+		scanner.camera().start(0, Videoio.CAP_DSHOW,
 			    e -> {}, () -> onEdt(() -> { // 카메라가 별도 스레드에서 실행하고 종료할떄 콜백 호출해서 함수 유지해야함
 			        cameraStarted = false;
 			        status.setText("카메라 연결을 확인하고 다시 연결해 주세요.");
@@ -316,7 +317,9 @@ public final class MirrorDialog extends JDialog {
 
 		    // 아이템 이미지 불러오기
 		    ImageIcon icon = new ImageIcon(MirrorDialog.class.getResource(path));
-		    itemPicture.setIcon(icon);
+		    // 이미지 크기 확대 (260x260)
+		    Image image = icon.getImage().getScaledInstance(520, 520, Image.SCALE_SMOOTH);
+		    itemPicture.setIcon(new ImageIcon(image));
 
 		    itemName.setText("발견한 아이템: " + item.displayName());
 		    card.setVisible(true);
