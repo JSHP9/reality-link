@@ -32,19 +32,12 @@ public class InventoryPanel extends JPanel implements ItemAcquiredListener {
 	private static final int SLOT_X = 25;
 	private static final int SLOT_START_Y = 25;
 	private static final int SLOT_SIZE = 50;
+	private static final int MAX_SLOTS = 6;
 
 	public InventoryPanel() {
 		setPreferredSize(new Dimension(100, 0));
 		setLayout(new BorderLayout());
 		inventoryImage = new ImageIcon(getClass().getResource("/assets/room/inventory.png"));
-
-		// 인벤토리 테스트용 아이템 지급
-		inventory.add(ItemType.BOOK);
-		inventory.add(ItemType.KEY);
-		inventory.add(ItemType.PLANT);
-		inventory.add(ItemType.CUP);
-		inventory.add(ItemType.WATER_CUP);
-		inventory.add(ItemType.SCISSORS);
 
 		// 인벤토리
 		label = new JLabel() {
@@ -85,6 +78,7 @@ public class InventoryPanel extends JPanel implements ItemAcquiredListener {
 				}
 			}
 		});
+		
 		closeTimer.setRepeats(false);
 
 		MouseAdapter MouseHandler = new MouseAdapter() {
@@ -94,16 +88,27 @@ public class InventoryPanel extends JPanel implements ItemAcquiredListener {
 				int x = e.getX();
 				int y = e.getY();
 
-				for (int i = 0; i < inventory.size(); ++i) {
-					int slot = (int) (SLOT_START_Y + i * 1.85 * SLOT_SIZE);
-					if (x >= SLOT_X && x <= SLOT_X + SLOT_SIZE && y >= slot && y < slot + SLOT_SIZE
-							&& inventory.get(i) != null) {
+				// 우클릭시 선택 해제
+				if (SwingUtilities.isRightMouseButton(e)) {
+					System.out.println("선택해제됨.");
+					selectedSlotIndex = -1;
+					label.repaint();
+					return;
+				}
 
-						selectedSlotIndex = i;
-						System.out.println(inventory.get(i) + " 선택됨.");
-						label.repaint();
-						return;
+				// 아이템 좌클릭시 해당 아이템 선택
+				if (SwingUtilities.isLeftMouseButton(e)) {
+					for (int i = 0; i < inventory.size(); ++i) {
+						int slot = (int) (SLOT_START_Y + i * 1.85 * SLOT_SIZE);
+						if (x >= SLOT_X && x <= SLOT_X + SLOT_SIZE && y >= slot && y < slot + SLOT_SIZE
+								&& inventory.get(i) != null) {
+							selectedSlotIndex = i;
+							System.out.println(inventory.get(i) + " 선택됨.");
+							label.repaint();
+							return;
+						}
 					}
+					return;
 				}
 			}
 
@@ -202,7 +207,6 @@ public class InventoryPanel extends JPanel implements ItemAcquiredListener {
 				double y = (double) e.getY() / popupLabel.getHeight();
 
 				if (SwingUtilities.isLeftMouseButton(e) && x >= 0.302 && x <= 0.608 && y >= 0.773 && y <= 0.932) {
-
 					System.out.println(item.displayName() + " 사용");
 				}
 			}
@@ -237,9 +241,33 @@ public class InventoryPanel extends JPanel implements ItemAcquiredListener {
 					return;
 				}
 			}
-			inventory.add(item);
-			System.out.println(item + " 얻음.");
-			label.repaint();
+			if (inventory.size() < MAX_SLOTS) {
+				inventory.add(item);
+				System.out.println(item + " 얻음.");
+				label.repaint();
+			} else {
+				System.out.println("인벤토리 가득 참.");
+			}
 		}
+	}
+
+	public void removeSelectedItem() {
+		if (selectedSlotIndex != -1) {
+			inventory.set(selectedSlotIndex, null);
+			selectedSlotIndex = -1;
+			label.repaint();
+		} else {
+			return;
+		}
+	}
+
+	public boolean hasSpace() {
+		return inventory.size() < MAX_SLOTS || inventory.contains(null);
+	}
+	
+	public void clearSelection() {
+		selectedSlotIndex = -1;
+		label.repaint();
+		return;
 	}
 }
