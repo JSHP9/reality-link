@@ -8,18 +8,14 @@ import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
-import java.util.Set;
 import javax.swing.*;
 import org.opencv.videoio.Videoio;
 
 // 거울 화면에서 카메라, 촬영 판정, 아이템 가져오기를 연결
 public final class MirrorDialog extends JDialog {
-	// 화면 배경, 글자, 획득 아이템 강조색
 	private static final Color PANEL = new Color(33, 27, 29);
 	private static final Color INK = new Color(232, 223, 217);
-	private static final Color ACCENT = new Color(182, 77, 87);
 
-	// 게임 창에서 받은 스캐너로 카메라와 스캔 작업을 관리
 	private final MirrorScanner scanner;
 	// 가져오기를 누르면 승인된 아이템을 게임 쪽에 넘기는 콜백
 	private final ItemAcquiredListener listener;
@@ -30,8 +26,8 @@ public final class MirrorDialog extends JDialog {
 
 	// 카메라 영상과 획득 카드를 그리는 패널
 	private final MirrorPanel mirrorPanel = new MirrorPanel();
-	// 새 영상을 화면에 반영할 수 있도록 80ms마다 확인
-	private final Timer timer = new Timer(80, e -> refreshPreview());
+	// 80ms마다 최신 영상 표시
+	private final Timer timer = new Timer(80, e -> updateCameraView()); 
 
 	private final JLabel status = label("카메라를 연결하는 중입니다.");
 	private final JLabel progress = label("대기");
@@ -41,17 +37,18 @@ public final class MirrorDialog extends JDialog {
 	private final JButton discard = button("버리기");
 	private final JButton closeButton = button("닫기");
 
-	private boolean attached; // 이 창이 스캐너 사용권을 얻었는지
-	private boolean waitingForCamera; // 카메라를 시작할 차례를 기다리는지
-	private boolean ownsStream; // 이 창에서 카메라 시작을 요청했고 종료 통보를 아직 받지 않았는지
-	private boolean busy; // 한 장의 추론 결과를 기다리는지
-	private boolean closed; // 창 닫기 처리를 이미 시작했는지
+	private boolean attached; // 스캐너 연결 여부
+	private boolean waitingForCamera; // 카메라 시작 대기
+	private boolean cameraStarted; // 카메라 시작 요청 여부
+	private boolean scanning; // YOLO 스캔 중
+	private boolean closed; // 창 종료 여부
 
 
 	public MirrorDialog(Window owner, MirrorScanner scanner, ItemAcquiredListener listener) {
 		
 		// 부모 클래스 JDialog의 생성자를 호출해 거울 창 생성
 		// JDialog: 새로운 창 만드는 class
+		// ModalityType.APPLICATION_MODAL: 거울이 열리면 다른 게임 창 입력 차단
 		super(owner, "거울", ModalityType.APPLICATION_MODAL);
 
 	    this.scanner = scanner;
@@ -72,11 +69,6 @@ public final class MirrorDialog extends JDialog {
 	    discard.addActionListener(e -> discardItem());
 	    closeButton.addActionListener(e -> dispose());
 	    
-	    
-	    // ESC로 거울 닫는 기능 (필요없으면 지울거)
-//		getRootPane().registerKeyboardAction(e -> dispose(), KeyStroke.getKeyStroke("ESCAPE"),
-//				JComponent.WHEN_IN_FOCUSED_WINDOW);
-
 		// 거울 열면 카메라 준비
 	    // WindowAdapter: 창에서 발생하는 이벤트를 처리하는 클래스
 		addWindowListener(new WindowAdapter() {
@@ -140,12 +132,12 @@ public final class MirrorDialog extends JDialog {
 		// 주기적으로 카메라 상태 확인하기 위해 타이머 설정
 		timer.start();
 		// 카메라 상태 확인
-		refreshPreview();
+		updateCameraView();
 			
 	}
 
 	// 최신 영상을 보여 주고 스캔할 수 있는 상태인지 확인함.
-	private void refreshPreview() {
+	private void updateCameraView() {
 		if (closed)
 			return;
 
@@ -156,7 +148,7 @@ public final class MirrorDialog extends JDialog {
 			startCamera();
 
 		CameraService.Frame frame = null;
-		if (ownsStream) {
+		if (cameraStarted) {
 			frame = camera.latest();
 		}
 		if (frame == null) {
@@ -166,59 +158,57 @@ public final class MirrorDialog extends JDialog {
 		}
 
 		if (frame != null && status.getText().equals("카메라를 연결하는 중입니다.")) {
-			status.setText("물체가 화면에 올리고 스캔하기를 누르세요.");
+			status.setText("물체를 화면에 올리고 스캔하기를 누르세요.");
 		}
-		// 추론 중이거나 가져올 아이템이 있으면 촬영과 재연결을 막는다.
-		captureButton.setEnabled(!busy && pendingItem == null && (frame != null || (!ownsStream && !waitingForCamera)));
+		// 스캔 중이거나 가져올 아이템이 있으면 촬영과 재연결을 막음
+		captureButton.setEnabled(!scanning && pendingItem == null && (frame != null || (!cameraStarted && !waitingForCamera)));
 	}
 
 	private void startCamera() {
 		waitingForCamera = false;
-		ownsStream = true;
+		cameraStarted = true;
 		status.setText("카메라를 연결하는 중입니다.");
 		captureButton.setText("스캔하기");
-		// 세부 메시지 대신 스레드가 끝났을 때 재연결 안내를 한 번 표시.
-		scanner.camera().start(0, Videoio.CAP_ANY, message -> {
-		}, () -> onEdt(() -> {
-			ownsStream = false;
-			status.setText("카메라 연결을 확인하고 다시 연결해 주세요.");
-			captureButton.setText("카메라 다시 연결");
-		}));
+		// num, 실행방식, 상태메시지, 종료시 실행함수
+		scanner.camera().start(0, Videoio.CAP_ANY,
+			    e -> {}, () -> onEdt(() -> { // 카메라가 별도 스레드에서 실행하고 종료할떄 콜백 호출해서 함수 유지해야함
+			        cameraStarted = false;
+			        status.setText("카메라 연결을 확인하고 다시 연결해 주세요.");
+			        captureButton.setText("카메라 다시 연결");
+			    })
+			);
 	}
 
 	// 카메라가 연결돼 있으면 프레임 한 장을 YOLO에 보냄.
 	private void capture() {
-		// 추론중 || 거울 닫음 || 아이템 획득중이면 return
-		if (busy || closed || pendingItem != null)
+		// 스캔중 || 거울 닫음 || 아이템 획득중이면 return
+		if (scanning || closed || pendingItem != null)
 			return;
 		// 카메라가 끊긴 상태에서는 이 버튼을 재연결에 쓴다.
-		if (!ownsStream) {
+		if (!cameraStarted) {
 			waitingForCamera = true;
-			refreshPreview();
+			updateCameraView();
 			return;
 		}
+		
 		BufferedImage frame;
+		
 		try {
-			// 오래됐거나 아직 수신하지 못한 프레임은 판정에 넣지 않음.
+			// 영상이 없거나 오래됐으면 예외 발생
 			frame = scanner.camera().freshFrame().image();
 		} catch (IllegalStateException failure) {
 			status.setText("최근 카메라 영상이 없습니다. 잠시 후 다시 촬영하세요.");
 			return;
 		}
-		busy = true;
+		scanning = true;
 		captureButton.setEnabled(false);
 		progress.setText("탐지 중");
 		status.setText("물체를 찾는 중입니다.");
-		// 촬영한 전체 프레임을 보내고, 화면을 바꿀 때만 EDT로 돌아온다.
-		scanner.scanYolo(frame, (items, failure) -> onEdt(() -> {
-			busy = false;
-			if (failure != null) {
-				progress.setText("실패");
-				status.setText(failure.getMessage());
-			} else {
-				showDetectedItem(items);
-			}
-			refreshPreview();
+		// 스캔 결과를 받아 화면에 반영. 카메라 이미지, 스캔 결과
+		scanner.scanYolo(frame, item -> onEdt(() -> {
+		    scanning = false;
+		    showDetectedItem(item);
+		    updateCameraView();
 		}));
 		
 	}
@@ -232,6 +222,7 @@ public final class MirrorDialog extends JDialog {
 			return;
 		}
 		mirrorPanel.showAcquired(pendingItem);
+		status.setText("아이템을 발견했습니다.");
 		claim.setVisible(true);
 		discard.setVisible(true); 
 	}
@@ -250,15 +241,18 @@ public final class MirrorDialog extends JDialog {
 	
 	// 아이템 가져오지 않고 버림
 	private void discardItem() {
-		pendingItem = null;
-		mirrorPanel.card.setVisible(false);
-		claim.setVisible(false);
-		discard.setVisible(false);
+	    pendingItem = null;
+	    mirrorPanel.card.setVisible(false);
+	    claim.setVisible(false);
+	    discard.setVisible(false);
+
+	    progress.setText("대기");
+	    status.setText("다시 스캔하세요.");
 	}
 
 	// 카메라나 YOLO에서 받은 결과는 화면 스레드에서 반영.
 	private void onEdt(Runnable task) {
-		SwingUtilities.invokeLater(() -> {
+		SwingUtilities.invokeLater(() -> { // UI 변경 작업을 Swing 스레드에 예약
 			if (!closed && isDisplayable())
 				task.run();
 		});
@@ -317,16 +311,15 @@ public final class MirrorDialog extends JDialog {
 		}
 
 		void showAcquired(ItemType item) {
+		    // 실제 이미지 경로 확인
+		    String path = item.imageFile();
 
-			// 아이템 이미지 불러오기
-			ImageIcon icon = new ImageIcon(MirrorDialog.class.getResource("/assets/items/" + item.imageFile()));
-			itemPicture.setIcon(icon);
+		    // 아이템 이미지 불러오기
+		    ImageIcon icon = new ImageIcon(MirrorDialog.class.getResource(path));
+		    itemPicture.setIcon(icon);
 
-			// 아이템 이름 표시
-			itemName.setText("발견한 아이템: " + item.displayName());
-
-			// 발견 화면 표시
-			card.setVisible(true);
+		    itemName.setText("발견한 아이템: " + item.displayName());
+		    card.setVisible(true);
 		}
 
 		@Override
