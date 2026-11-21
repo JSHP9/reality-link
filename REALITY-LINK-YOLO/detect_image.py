@@ -57,4 +57,4 @@ if __name__ == "__main__":
         detections = detect(image_path, model_path)
 
     # 탐지 결과를 JSON으로 Java에 전달
-    print(json.dumps({"detections": detections}))
+    print(json.dumps(detections[0] if detections else {}))

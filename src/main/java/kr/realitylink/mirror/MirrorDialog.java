@@ -136,97 +136,78 @@ public final class MirrorDialog extends JDialog {
 			
 	}
 
-	// 최신 영상을 보여 주고 스캔할 수 있는 상태인지 확인함.
+	// 카메라 영상을 화면에 표시
 	private void updateCameraView() {
-		if (closed)
-			return;
+	    if (closed)
+	        return;
 
-		CameraService camera = scanner.camera();
+	    CameraService camera = scanner.camera();
 
-		// 창을 바로 다시 열어도 이전 카메라 스레드가 장치를 놓을 때까지 기다림.
-		if (waitingForCamera && !camera.isRunning())
-			startCamera();
+	    // 이전 카메라가 종료되면 새로 시작
+	    if (waitingForCamera && !camera.isRunning())
+	        startCamera();
 
-		CameraService.Frame frame = null;
-		if (cameraStarted) {
-			frame = camera.latest();
-		}
-		if (frame == null) {
-			mirrorPanel.setFrame(null);
-		} else {
-			mirrorPanel.setFrame(frame.image());
-		}
+	    BufferedImage frame = cameraStarted ? camera.latest() : null;
+	    mirrorPanel.setFrame(frame);
 
-		if (frame != null && status.getText().equals("카메라를 연결하는 중입니다.")) {
-			status.setText("물체를 화면에 올리고 스캔하기를 누르세요.");
-		}
-		// 스캔 중이거나 가져올 아이템이 있으면 촬영과 재연결을 막음
-		captureButton.setEnabled(!scanning && pendingItem == null && (frame != null || (!cameraStarted && !waitingForCamera)));
+	    if (frame != null && status.getText().equals("카메라 연결 중"))
+	        status.setText("물체를 화면에 올리고 스캔하기를 누르세요.");
+
+	    // 영상이 있고 스캔 중이 아닐 때만 버튼 활성화
+	    captureButton.setEnabled(!scanning && pendingItem == null && frame != null);
 	}
+
+
 
 	private void startCamera() {
-		waitingForCamera = false;
-		cameraStarted = true;
-		status.setText("카메라를 연결하는 중입니다.");
-		captureButton.setText("스캔하기");
-		// num, 실행방식, 상태메시지, 종료시 실행함수
-		// DirectShow가 CAP_ANY 방식 보다 카메라를 빠르게 열음.
-		scanner.camera().start(0, Videoio.CAP_DSHOW,
-			    e -> {}, () -> onEdt(() -> { // 카메라가 별도 스레드에서 실행하고 종료할떄 콜백 호출해서 함수 유지해야함
-			        cameraStarted = false;
-			        status.setText("카메라 연결을 확인하고 다시 연결해 주세요.");
-			        captureButton.setText("카메라 다시 연결");
-			    })
-			);
+	    waitingForCamera = false;
+	    cameraStarted = true;
+	    status.setText("카메라 연결 중");
+	
+	    // 카메라 종료 시 화면 상태 변경
+	    scanner.camera().start(0, Videoio.CAP_DSHOW, () -> onEdt(() -> {
+	        cameraStarted = false;
+	        status.setText("카메라가 종료되었습니다. 거울을 다시 열어 주세요.");
+	    }));
 	}
 
-	// 카메라가 연결돼 있으면 프레임 한 장을 YOLO에 보냄.
+	// 카메라 사진을 YOLO에 보내기
 	private void capture() {
-		// 스캔중 || 거울 닫음 || 아이템 획득중이면 return
-		if (scanning || closed || pendingItem != null)
-			return;
-		// 카메라가 끊긴 상태에서는 이 버튼을 재연결에 쓴다.
-		if (!cameraStarted) {
-			waitingForCamera = true;
-			updateCameraView();
-			return;
-		}
-		
-		BufferedImage frame;
-		
-		try {
-			// 영상이 없거나 오래됐으면 예외 발생
-			frame = scanner.camera().freshFrame().image();
-		} catch (IllegalStateException failure) {
-			status.setText("최근 카메라 영상이 없습니다. 잠시 후 다시 촬영하세요.");
-			return;
-		}
-		scanning = true;
-		captureButton.setEnabled(false);
-		progress.setText("탐지 중");
-		status.setText("물체를 찾는 중입니다.");
-		// 스캔 결과를 받아 화면에 반영. 카메라 이미지, 스캔 결과
-		scanner.scanYolo(frame, item -> onEdt(() -> {
-		    scanning = false;
-		    showDetectedItem(item);
-		    updateCameraView();
-		}));
-		
+	    if (scanning || closed || pendingItem != null)
+	        return;
+
+	    BufferedImage frame = scanner.camera().latest();
+
+	    if (frame == null)
+	        return;
+
+	    scanning = true;
+	    captureButton.setEnabled(false);
+	    status.setText("물체를 찾는 중입니다.");
+
+	    // YOLO 탐지 결과를 화면에 표시
+	    scanner.scanYolo(frame, item -> onEdt(() -> {
+	        scanning = false;
+	        showDetectedItem(item);
+	        updateCameraView();
+	    }));
 	}
 
-	// YOLO에서 아이템 가져오고 전달
+	// 탐지한 아이템 표시
 	private void showDetectedItem(ItemType item) {
-		progress.setText("완료");
-		pendingItem = item;
-		if (pendingItem == null) {
-			status.setText("물체를 찾지 못했습니다. 다시 스캔하세요.");
-			return;
-		}
-		mirrorPanel.showAcquired(pendingItem);
-		status.setText("아이템을 발견했습니다.");
-		claim.setVisible(true);
-		discard.setVisible(true); 
+	    pendingItem = item;
+
+	    if (item == null) {
+	        status.setText("물체를 찾지 못했습니다. 다시 스캔하세요.");
+	        return;
+	    }
+
+	    mirrorPanel.showAcquired(item);
+	    status.setText("아이템을 발견했습니다.");
+	    claim.setVisible(true);
+	    discard.setVisible(true);
 	}
+
 
 	// 가져오기 버튼을 누르면 아이템을 게임에 전달하고 거울을 닫음
 	private void claimItem() {
@@ -317,7 +298,7 @@ public final class MirrorDialog extends JDialog {
 
 		    // 아이템 이미지 불러오기
 		    ImageIcon icon = new ImageIcon(MirrorDialog.class.getResource(path));
-		    // 이미지 크기 확대 (260x260)
+		    // 이미지 크기 확대 (520X520)
 		    Image image = icon.getImage().getScaledInstance(520, 520, Image.SCALE_SMOOTH);
 		    itemPicture.setIcon(new ImageIcon(image));
 
