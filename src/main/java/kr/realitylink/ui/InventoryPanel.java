@@ -1,23 +1,12 @@
 package kr.realitylink.ui;
 
-import java.awt.BorderLayout;
-import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.*;
+import java.awt.event.*;
 import java.util.ArrayList;
 
-import javax.swing.ImageIcon;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JPopupMenu;
-import javax.swing.SwingUtilities;
-import javax.swing.Timer;
+import javax.swing.*;
 
-import kr.realitylink.common.ItemAcquiredListener;
-import kr.realitylink.common.ItemType;
+import kr.realitylink.common.*;
 
 public class InventoryPanel extends JPanel implements ItemAcquiredListener {
 	private ImageIcon inventoryImage, popupImage;

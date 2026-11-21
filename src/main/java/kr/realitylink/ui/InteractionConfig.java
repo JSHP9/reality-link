@@ -1,5 +1,7 @@
 package kr.realitylink.ui;
 
+import java.awt.event.MouseEvent;
+
 public class InteractionConfig {
 	// 벽 이동 버튼
 	public static final double NEXT_WALL_X_MAX = 0.95;
@@ -85,4 +87,39 @@ public class InteractionConfig {
 	
 	public static final double SWITCH_Y_MIN = 0.82;
 	public static final double SWITCH_Y_MAX = 0.92;
+	
+	// 스위치
+	public static final double LIGHT_SWITCH_X_MIN = 0.435;
+	public static final double LIGHT_SWITCH_X_MAX = 0.512;
+	
+	public static final double LIGHT_SWITCH_Y_MIN = 0.429;
+	public static final double LIGHT_SWITCH_Y_MAX = 0.721;
+	
+	// 범위를 문자열로 반환하는 메서드
+	public static double[] getBounds(String object) {
+		try {
+			return new double[] {
+					InteractionConfig.class.getField(object + "_X_MIN").getDouble(null),
+					InteractionConfig.class.getField(object + "_X_MAX").getDouble(null),
+					InteractionConfig.class.getField(object + "_Y_MIN").getDouble(null),
+					InteractionConfig.class.getField(object + "_Y_MAX").getDouble(null)
+			};
+		} catch (ReflectiveOperationException e) {
+			// 찾을 수 없을 경우 에러 메세지
+			throw new IllegalArgumentException("좌표를 찾을 수 없음: " + object, e);
+		}
+	}
+	
+	// 마우스가 범위내에 있는지 감지하는 메서드
+	public static boolean isInside(MouseEvent e, double[] bounds) {
+		int x = e.getX();
+	    int y = e.getY();
+	    int width = e.getComponent().getWidth();
+	    int height = e.getComponent().getHeight();
+	    
+		return x >= width * bounds[0]
+	            && x <= width * bounds[1]
+	            && y >= height * bounds[2]
+	            && y <= height * bounds[3];
+	}
 }
